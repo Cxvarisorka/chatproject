@@ -1,4 +1,4 @@
-import { createContext, useState, useRef, useEffect, useContext, useCallback } from 'react';
+import { createContext, useState, useRef, useEffect, useContext } from 'react';
 import Peer from 'peerjs';
 import { AuthContext } from './auth.context';
 import { ChatContext } from './chat.context';
@@ -26,7 +26,7 @@ export const VoiceProvider = ({ children }) => {
     const currentCall = useRef(null);
     const pendingCall = useRef(null);
 
-    const cleanup = useCallback(() => {
+    const cleanup = () => {
         localStream.current?.getTracks().forEach(track => track.stop());
         localStream.current = null;
         currentCall.current?.close();
@@ -35,25 +35,22 @@ export const VoiceProvider = ({ children }) => {
         setCallStatus('idle');
         setIncomingCall(null);
         setCallerInfo(null);
-    }, []);
+    };
 
-    const setupCall = useCallback((call) => {
+    const setupCall = (call) => {
         currentCall.current = call;
 
         call.on('stream', (remoteStream) => {
-            // Create a new audio element to ensure clean playback
             const audio = remoteAudio.current;
             if (audio) {
                 audio.srcObject = remoteStream;
                 audio.volume = 1.0;
                 audio.muted = false;
 
-                // Force play after user interaction (accept/call button)
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
                     playPromise.catch((err) => {
                         console.error('Audio play error:', err);
-                        // Retry play on user interaction
                         document.addEventListener('click', () => {
                             audio.play();
                         }, { once: true });
@@ -67,12 +64,11 @@ export const VoiceProvider = ({ children }) => {
             console.error('Call error:', err);
             cleanup();
         });
-    }, [cleanup]);
+    };
 
     useEffect(() => {
         if (!user || !socket) return;
 
-        // Configure PeerJS with ICE servers for production
         const peerConfig = {
             host: PEER_SERVER_HOST,
             port: PEER_SERVER_PORT,
@@ -118,9 +114,9 @@ export const VoiceProvider = ({ children }) => {
             socket.off('incomingCall', onIncomingCall);
             socket.off('callEnded', onCallEnded);
         };
-    }, [user, socket, cleanup]);
+    }, [user, socket]);
 
-    const callUser = useCallback(async (targetUserId, targetUserName) => {
+    const callUser = async (targetUserId, targetUserName) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             localStream.current = stream;
@@ -141,16 +137,15 @@ export const VoiceProvider = ({ children }) => {
         } catch {
             cleanup();
         }
-    }, [socket, user, peer, setupCall, cleanup]);
+    };
 
-    const acceptCall = useCallback(async () => {
+    const acceptCall = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             localStream.current = stream;
 
             socket.emit('acceptCall', { to: incomingCall.from, peerId: peer.id });
 
-            // Answer pending PeerJS call after short delay
             setTimeout(() => {
                 if (pendingCall.current) {
                     pendingCall.current.answer(stream);
@@ -163,22 +158,22 @@ export const VoiceProvider = ({ children }) => {
         } catch {
             cleanup();
         }
-    }, [socket, incomingCall, peer, setupCall, cleanup]);
+    };
 
-    const rejectCall = useCallback(() => {
+    const rejectCall = () => {
         socket.emit('endCall', { to: incomingCall.from });
         pendingCall.current = null;
         setIncomingCall(null);
         setCallStatus('idle');
-    }, [socket, incomingCall]);
+    };
 
-    const endCall = useCallback(() => {
+    const endCall = () => {
         const targetId = incomingCall?.from || callerInfo?.id;
         if (targetId) {
             socket.emit('endCall', { to: targetId });
         }
         cleanup();
-    }, [socket, incomingCall, callerInfo, cleanup]);
+    };
 
     return (
         <VoiceContext.Provider value={{

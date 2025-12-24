@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback } from "react";
+import { createContext, useState, useEffect } from "react";
 import { io } from "socket.io-client";
 
 export const ChatContext = createContext();
@@ -23,22 +23,22 @@ export const ChatProvider = ({ children }) => {
         return () => newSocket.disconnect();
     }, []);
 
-    const joinChat = useCallback((chatId) => {
+    const joinChat = (chatId) => {
         if (!socket) return;
         if (currentChat) {
             socket.emit("leaveChat", currentChat);
         }
         socket.emit("joinChat", chatId);
         setCurrentChat(chatId);
-    }, [socket, currentChat]);
+    };
 
-    const fetchChats = useCallback(async () => {
+    const fetchChats = async () => {
         const res = await fetch(`${API}/chat`, { credentials: "include" });
         const data = await res.json();
         setChats(data);
-    }, []);
+    };
 
-    const createChat = useCallback(async (title, members) => {
+    const createChat = async (title, members) => {
         const res = await fetch(`${API}/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -48,15 +48,15 @@ export const ChatProvider = ({ children }) => {
         const data = await res.json();
         setChats((prev) => [...prev, data]);
         return data;
-    }, []);
+    };
 
-    const fetchMessages = useCallback(async (chatId) => {
+    const fetchMessages = async (chatId) => {
         const res = await fetch(`${API}/message/${chatId}`, { credentials: "include" });
         const data = await res.json();
         setMessages(data);
-    }, []);
+    };
 
-    const sendMessage = useCallback(async (chatId, message) => {
+    const sendMessage = async (chatId, message) => {
         const res = await fetch(`${API}/message`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -64,12 +64,12 @@ export const ChatProvider = ({ children }) => {
             body: JSON.stringify({ chatId, message }),
         });
         return res.json();
-    }, []);
+    };
 
-    const searchUsers = useCallback(async (query) => {
+    const searchUsers = async (query) => {
         const res = await fetch(`${API}/chat/users?q=${query}`, { credentials: "include" });
         return res.json();
-    }, []);
+    };
 
     return (
         <ChatContext.Provider value={{

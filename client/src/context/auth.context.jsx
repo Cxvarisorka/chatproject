@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback } from "react";
+import { createContext, useState, useEffect } from "react";
 
 export const AuthContext = createContext();
 
@@ -8,7 +8,6 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Auto-login on mount using cookie
     useEffect(() => {
         const checkAuth = async () => {
             try {
@@ -28,7 +27,7 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
-    const login = useCallback(async (username, password) => {
+    const login = async (username, password) => {
         const res = await fetch(`${API}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -39,9 +38,9 @@ export const AuthProvider = ({ children }) => {
         const data = await res.json();
         setUser(data);
         return data;
-    }, []);
+    };
 
-    const signup = useCallback(async (username, password) => {
+    const signup = async (username, password) => {
         const res = await fetch(`${API}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -49,15 +48,15 @@ export const AuthProvider = ({ children }) => {
         });
         if (!res.ok) throw new Error("Signup failed");
         return res.json();
-    }, []);
+    };
 
-    const logout = useCallback(async () => {
+    const logout = async () => {
         await fetch(`${API}/auth/logout`, {
             method: "POST",
             credentials: "include",
         });
         setUser(null);
-    }, []);
+    };
 
     return (
         <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
