@@ -15,7 +15,7 @@ const createSendToken = (statusCode, res, user) => {
     res.cookie('jwt', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'prod',
-        sameSite: 'Lax',
+        sameSite: 'None',
         maxAge: 3 * 24 * 60 * 60 * 1000 // 24 hours
     });
 
