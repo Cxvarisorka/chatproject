@@ -5,6 +5,14 @@ import { ChatContext } from './chat.context';
 
 export const VoiceContext = createContext();
 
+const PEER_SERVER_HOST = import.meta.env.VITE_SOCKET_URL
+    ? new URL(import.meta.env.VITE_SOCKET_URL).hostname
+    : 'localhost';
+const PEER_SERVER_PORT = import.meta.env.VITE_SOCKET_URL
+    ? (new URL(import.meta.env.VITE_SOCKET_URL).port || 443)
+    : 3000;
+const PEER_SERVER_SECURE = import.meta.env.VITE_SOCKET_URL?.startsWith('https');
+
 export const VoiceProvider = ({ children }) => {
     const { user } = useContext(AuthContext);
     const { socket } = useContext(ChatContext);
@@ -46,7 +54,22 @@ export const VoiceProvider = ({ children }) => {
     useEffect(() => {
         if (!user || !socket) return;
 
-        const newPeer = new Peer();
+        // Configure PeerJS with ICE servers for production
+        const peerConfig = {
+            host: PEER_SERVER_HOST,
+            port: PEER_SERVER_PORT,
+            path: '/peerjs',
+            secure: PEER_SERVER_SECURE,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                ]
+            }
+        };
+
+        const newPeer = new Peer(peerConfig);
 
         newPeer.on('open', (peerId) => {
             setPeer(newPeer);
@@ -55,6 +78,10 @@ export const VoiceProvider = ({ children }) => {
 
         newPeer.on('call', (call) => {
             pendingCall.current = call;
+        });
+
+        newPeer.on('error', (err) => {
+            console.error('PeerJS error:', err);
         });
 
         const onIncomingCall = ({ from, peerId, callerName }) => {
