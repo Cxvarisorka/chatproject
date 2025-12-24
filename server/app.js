@@ -9,11 +9,15 @@ const authRouter = require('./router/auth.router');
 const chatRouter = require('./router/chat.router');
 const messageRouter = require('./router/message.router');
 const globalErrorHandler = require('./controllers/error.controller');
+const { ExpressPeerServer } = require('peer');
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+const peerServer = ExpressPeerServer(server, {
+    debug: true,
+});
 const io = new Server(server, {
     cors: {
         origin: 'http://localhost:5173',
@@ -41,24 +45,52 @@ app.use('/api/message', messageRouter);
 
 app.use(globalErrorHandler);
 
+const onlineUsers = new Map();
+
 // Socket.IO
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
-
-    socket.on('joinChat', (chatId) => {
-        socket.join(chatId);
+    // User registration for voice calls
+    socket.on('register', ({ userId, peerId }) => {
+        onlineUsers.set(userId, { socketId: socket.id, peerId });
+        socket.userId = userId;
     });
 
-    socket.on('leaveChat', (chatId) => {
-        socket.leave(chatId);
+    // Voice call signaling
+    socket.on('callUser', ({ to, from, callerName }) => {
+        const targetUser = onlineUsers.get(to);
+        const caller = onlineUsers.get(from);
+        if (targetUser && caller) {
+            io.to(targetUser.socketId).emit('incomingCall', {
+                from,
+                peerId: caller.peerId,
+                callerName
+            });
+        }
     });
 
-    socket.on('typing', (chatId) => {
-        socket.to(chatId).emit('userTyping', socket.id);
+    socket.on('acceptCall', ({ to, peerId }) => {
+        const caller = onlineUsers.get(to);
+        if (caller) {
+            io.to(caller.socketId).emit('callAccepted', { peerId });
+        }
     });
+
+    socket.on('endCall', ({ to }) => {
+        const user = onlineUsers.get(to);
+        if (user) {
+            io.to(user.socketId).emit('callEnded');
+        }
+    });
+
+    // Chat room management
+    socket.on('joinChat', (chatId) => socket.join(chatId));
+    socket.on('leaveChat', (chatId) => socket.leave(chatId));
+    socket.on('typing', (chatId) => socket.to(chatId).emit('userTyping', socket.id));
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        if (socket.userId) {
+            onlineUsers.delete(socket.userId);
+        }
     });
 });
 

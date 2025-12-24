@@ -2,10 +2,12 @@ import { useState, useContext, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/auth.context";
 import { ChatContext } from "../context/chat.context";
+import { VoiceContext } from "../context/voice.context";
 
 const Chat = () => {
     const { user, logout } = useContext(AuthContext);
     const { chats, messages, currentChat, fetchChats, fetchMessages, sendMessage, joinChat, createChat, searchUsers } = useContext(ChatContext);
+    const { callUser, callStatus } = useContext(VoiceContext);
     const [message, setMessage] = useState("");
     const [newChatTitle, setNewChatTitle] = useState("");
     const [showModal, setShowModal] = useState(false);
@@ -14,6 +16,17 @@ const Chat = () => {
     const [selectedUsers, setSelectedUsers] = useState([]);
     const messagesEndRef = useRef(null);
     const navigate = useNavigate();
+
+    // Get the current chat object to access members
+    const currentChatData = chats.find(c => c._id === currentChat);
+    // Get the other user in the chat (for 1-on-1 calls)
+    const otherMember = currentChatData?.members?.find(m => m._id !== user._id);
+
+    const handleCall = () => {
+        if (otherMember && callStatus === 'idle') {
+            callUser(otherMember._id, otherMember.username);
+        }
+    };
 
     useEffect(() => {
         if (!user) {
@@ -119,6 +132,31 @@ const Chat = () => {
             <div className="flex-1 flex flex-col">
                 {currentChat ? (
                     <>
+                        {/* Chat Header */}
+                        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-white font-medium">{currentChatData?.title}</h2>
+                                {otherMember && (
+                                    <p className="text-gray-400 text-sm">{otherMember.username}</p>
+                                )}
+                            </div>
+                            {otherMember && (
+                                <button
+                                    onClick={handleCall}
+                                    disabled={callStatus !== 'idle'}
+                                    className={`p-2 rounded-full transition-colors ${
+                                        callStatus === 'idle'
+                                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                    }`}
+                                    title="Voice Call"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
                         <div className="flex-1 overflow-y-auto p-4">
                             {messages.map((msg, i) => (
                                 <div
