@@ -52,4 +52,17 @@ const login = catchAsync(async (req, res, next) => {
     createSendToken(200, res, user);
 });
 
-module.exports = { signup, login };
+const getMe = catchAsync(async (req, res) => {
+    req.user.password = undefined;
+    res.status(200).json(req.user);
+});
+
+const logout = (_req, res) => {
+    res.cookie('jwt', '', {
+        httpOnly: true,
+        expires: new Date(0)
+    });
+    res.status(200).json({ message: 'Logged out' });
+};
+
+module.exports = { signup, login, getMe, logout };

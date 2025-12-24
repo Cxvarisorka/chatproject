@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/auth.context";
 
@@ -6,8 +6,15 @@ const Login = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const { login } = useContext(AuthContext);
+    const { user, loading, login } = useContext(AuthContext);
     const navigate = useNavigate();
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (!loading && user) {
+            navigate("/chat");
+        }
+    }, [user, loading, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -19,6 +26,14 @@ const Login = () => {
             setError("Invalid credentials");
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900">
+                <div className="text-white">Loading...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900">
