@@ -37,19 +37,37 @@ export const VoiceProvider = ({ children }) => {
         setCallerInfo(null);
     }, []);
 
-    const handleRemoteStream = useCallback((stream) => {
-        if (remoteAudio.current) {
-            remoteAudio.current.srcObject = stream;
-            remoteAudio.current.play().catch(() => {});
-        }
-    }, []);
-
     const setupCall = useCallback((call) => {
         currentCall.current = call;
-        call.on('stream', handleRemoteStream);
+
+        call.on('stream', (remoteStream) => {
+            // Create a new audio element to ensure clean playback
+            const audio = remoteAudio.current;
+            if (audio) {
+                audio.srcObject = remoteStream;
+                audio.volume = 1.0;
+                audio.muted = false;
+
+                // Force play after user interaction (accept/call button)
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch((err) => {
+                        console.error('Audio play error:', err);
+                        // Retry play on user interaction
+                        document.addEventListener('click', () => {
+                            audio.play();
+                        }, { once: true });
+                    });
+                }
+            }
+        });
+
         call.on('close', () => cleanup());
-        call.on('error', () => cleanup());
-    }, [handleRemoteStream, cleanup]);
+        call.on('error', (err) => {
+            console.error('Call error:', err);
+            cleanup();
+        });
+    }, [cleanup]);
 
     useEffect(() => {
         if (!user || !socket) return;
